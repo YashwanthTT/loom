@@ -4,5 +4,5 @@
   "workspaces": ["packages/*"],
   "scripts": {
     "dev:cli": "bun run --watch packages/cli/ index.ts"
-  },
+  }
 }
