@@ -1,8 +1,0 @@
-{
-  "name": "@loom/tui",
-  "version": "1.0.0",
-  "private": true,
-  "dependencies": {
-    "@opentui/core": "^0.4.5"
-  }
-}
