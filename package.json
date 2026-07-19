@@ -2,16 +2,11 @@
   "name": "loom",
   "version": "1.0.0",
   "private": true,
-  "workspaces": [
-    "packages/*"
-  ],
+  "workspaces": ["packages/*"],
   "scripts": {
     "dev:coding": "bun run packages/loom-coding/index.ts"
   },
   "dependencies": {
     "@opentui/core": "^0.4.5"
-  },
-  "devDependencies": {
-    "@types/node": "^26.1.1"
   }
 }

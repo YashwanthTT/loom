@@ -1,8 +1,8 @@
 {
   "name": "@loom/ai",
   "version": "1.0.0",
-  "private": true,
-  "dependencies": {
-    "@google/generative-ai": "^0.21.0"
-  }
+  "private": true
+  //   "dependencies": {
+  //   "@google/generative-ai": "^21.0.0"
+  // }
 }

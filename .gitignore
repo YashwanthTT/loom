@@ -49,4 +49,3 @@ Thumbs.db
 .env.test.local
 .env.production.local
 *.pem
-scratch/
