@@ -1,5 +1,6 @@
 {
   "lockfileVersion": 1,
+  "configVersion": 0,
   "workspaces": {
     "": {
       "name": "loom",
@@ -16,7 +17,7 @@
       "version": "1.0.0",
     },
     "packages/loom-coding": {
-      "name": "@loom/tui",
+      "name": "@loom/loom-coding",
       "version": "1.0.0",
       "dependencies": {
         "@opentui/core": "^0.4.5",
@@ -28,7 +29,7 @@
 
     "@loom/cli": ["@loom/cli@workspace:packages/loom-agent"],
 
-    "@loom/tui": ["@loom/tui@workspace:packages/loom-coding"],
+    "@loom/loom-coding": ["@loom/loom-coding@workspace:packages/loom-coding"],
 
     "@opentui/core": ["@opentui/core@0.4.5", "", { "dependencies": { "bun-ffi-structs": "0.2.4", "diff": "9.0.0", "marked": "17.0.1", "string-width": "7.2.0", "strip-ansi": "7.1.2" }, "optionalDependencies": { "@opentui/core-darwin-arm64": "0.4.5", "@opentui/core-darwin-x64": "0.4.5", "@opentui/core-linux-arm64": "0.4.5", "@opentui/core-linux-arm64-musl": "0.4.5", "@opentui/core-linux-x64": "0.4.5", "@opentui/core-linux-x64-musl": "0.4.5", "@opentui/core-win32-arm64": "0.4.5", "@opentui/core-win32-x64": "0.4.5" }, "peerDependencies": { "web-tree-sitter": "0.25.10" } }, "sha512-JsgRTPkA6e+Vxmumxai6SElOSlRQkbzNKHlCfemlArRiLhfC1IZ9RXJo2QH4xSu+uBOWAM90uss73/pPlkdEig=="],
 

@@ -1,11 +1,22 @@
-import { createCliRenderer, Input } from "@opentui/core"
+import {createCliRenderer,  Text,} from "@opentui/core";
 
-const renderer = await createCliRenderer()
+import { createInput } from "./src/input";
+import { slashCommands } from "./src/slash-command";
 
-const input = Input({
-  placeholder: "Type something...",
-  width: 30,
-})
+const renderer = await createCliRenderer();
 
-input.focus()
-renderer.root.add(input)
+let commandList = "";
+for(let i=0;i<5;i=i+1){
+   commandList = commandList+slashCommands[i].name+slashCommands[i].description
+  }
+
+const commandText = Text({
+  content: commandList,
+});
+
+const input = createInput();
+
+renderer.root.add(commandText);
+renderer.root.add(input);
+
+input.focus();
