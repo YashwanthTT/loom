@@ -2,6 +2,9 @@
   "name": "@loom/loom-coding",
   "version": "1.0.0",
   "private": true,
+  "script":{
+    "dev:coding":"bun run index.ts"
+  },
   "dependencies": {
     "@opentui/core": "^0.4.5"
   }

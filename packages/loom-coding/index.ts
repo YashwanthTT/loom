@@ -1,17 +1,17 @@
-import { createCliRenderer, Input } from "@opentui/core"
-import { createSideBar } from "./src/sidebar.ts"
+import { createCliRenderer } from "@opentui/core"
+import { createSidebar } from "./src/sidebar.js"
+
 const renderer = await createCliRenderer()
-const sidebar = createSideBar(renderer, {
-  subphase: "Phase 0.2 (Auth)",
-  iteration: { current: 2, max: 4 },
-  steps: [
-    { name: "Tester", status: "Passed" },
-    { name: "Implementer", status: "Running" },
-    { name: "QC", status: "Pending" },
-    { name: "Evaluator", status: "Pending" },
+
+const sidebar = createSidebar(renderer, {
+  items: [
+    { id: "dashboard", icon: "▣", label: "Dashboard", onSelect: () => console.log("dashboard") },
+    { id: "agents", icon: "⚙", label: "Agents", onSelect: () => console.log("agents") },
+    { id: "logs", icon: "≡", label: "Logs", onSelect: () => console.log("logs") },
+  ],
+  commands: [
+    { id: "run-tests", label: "Run Tests", description: "Trigger the Tester agent", action: () => console.log("running tests") },
   ],
 })
+
 renderer.root.add(sidebar.container)
- //ex
- sidebar.pushlog("writing patch for auth.py")
- sidebar.pushlog("reading the file main.c")

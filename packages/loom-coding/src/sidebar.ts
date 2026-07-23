@@ -1,167 +1,315 @@
-import {type CliRenderer, BoxRenderable, TextRenderable, t, fg, bold} from "@opentui/core"
-export type StepName = "Tester"|"Implementer"|"QC"|"Evaluator"
-export type StepStatus = "Passed"|"Running"|"Pending"
-export interface AgentStep{
-    name:StepName
-    status:StepStatus
-}
-export interface SideBarState{
-    version:string
-    subphase:string 
-    iteration:{current:number;max:number }
-    steps:AgentStep[]
-    logs:string[]
-    maxloglines?:number
+import {
+  type CliRenderer,
+  type KeyEvent,
+  BoxRenderable,
+  TextRenderable,
+  InputRenderable,
+} from "@opentui/core"
+import { type Command } from "./command-palette.js"
 
+export interface NavItem {
+  id: string
+  icon: string
+  label: string
+  onSelect: () => void
 }
-const defaultState: SideBarState = {
-    version:"v1",
-    subphase:"phase o.1(Init)",
-    iteration: { current: 1, max: 4 },
-    steps:[
-        {name:"Tester",status:"Pending"},
-        {name:"Implementer",status:"Pending"},
-        {name:"QC",status:"Pending"},
-        {name:"Evaluator",status:"Pending"},
-    ],
-    logs: [],
-    maxloglines: 6,
+
+export interface SidebarOptions {
+  items: NavItem[]
+  commands?: Command[]
+  expandedWidth?: number
 }
-function formatstep(step:AgentStep,index:number){
-    const bullet = step.status === "Pending" ? "○":"●"
-    const label = `${bullet} ${index+1},${step.name}`
-    const padded = label.padEnd(20," ")
-    if(step.status === "Passed"){
-         return `${padded}(Passed)`
-    }
-    if(step.status === "Running"){
-        return `${padded}(Running...)`
-    }
-    return `${padded}(Pending)`
+
+export interface SideBar {
+  container: BoxRenderable
+  toggle: () => void
+  destroy: () => void
 }
-export interface Sidebar {
-    container:BoxRenderable 
-    update:(partial:Partial<SideBarState>)=>void
-    pushlog:(line:string)=>void
+
+interface SidebarItem {
+  id: string
+  icon: string
+  label: string
+  action: () => void
 }
-export function createSideBar(renderer:CliRenderer,initial: Partial<SideBarState>={}): Sidebar{
-let state: SideBarState={...defaultState,...initial}
-  const container = new BoxRenderable(renderer, {
-    id: "sidebar-root",
-    width: 42,
-    height: "auto",
-    flexDirection: "column",
-    borderStyle: "single",
-    border: true,
-  })
-  const headerBox = new BoxRenderable(renderer, {
-    id: "sidebar-header",
-    width: "auto",
+
+export function createSidebar(renderer: CliRenderer, options: SidebarOptions): SideBar {
+  const expandedWidth = options.expandedWidth ?? 24
+  let expanded = true
+  let selectedIndex = 0
+
+  const allItems: SidebarItem[] = [
+    ...options.items.map((item) => ({
+      id: item.id,
+      icon: item.icon,
+      label: item.label,
+      action: item.onSelect,
+    })),
+    ...(options.commands ?? []).map((cmd) => ({
+      id: cmd.id,
+      icon: "⚡",
+      label: cmd.label,
+      action: cmd.action,
+    })),
+  ]
+
+  let filteredItems = [...allItems]
+
+  // ---- FLOATING TOGGLE BUTTON (collapsed state) ----
+  const toggleButton = new BoxRenderable(renderer, {
+    id: "sidebar-toggle-btn",
+    width: 5,
     height: 3,
-    borderStyle: "single",
-    border: true,
     alignItems: "center",
     justifyContent: "center",
+    borderStyle: "rounded",
+    border: true,
+    borderColor: "#8b5cf6",
+    backgroundColor: "#0f172a",
+    zIndex: 100,
   })
+
+  const toggleIcon = new TextRenderable(renderer, {
+    id: "sidebar-toggle-icon",
+    content: "≡",
+    fg: "#a78bfa",
+  })
+
+  toggleButton.add(toggleIcon)
+  toggleButton.onMouse = (event) => {
+    if (event.type === "down") toggleSideBar()
+  }
+  toggleButton.onMouseOver = () => {
+    toggleButton.backgroundColor = "#1e293b"
+    toggleIcon.fg = "#c4b5fd"
+  }
+  toggleButton.onMouseOut = () => {
+    toggleButton.backgroundColor = "#0f172a"
+    toggleIcon.fg = "#a78bfa"
+  }
+
+  // ---- EXPANDED SIDEBAR ----
+  const container = new BoxRenderable(renderer, {
+    id: "sidebar-root",
+    width: expandedWidth,
+    height: "auto",
+    flexDirection: "column",
+    borderStyle: "rounded",
+    border: true,
+    borderColor: "#8b5cf6",
+    backgroundColor: "#0f172a",
+    paddingLeft: 1,
+    paddingRight: 1,
+  })
+
+  // ---- HEADER ----
+  const headerRow = new BoxRenderable(renderer, {
+    id: "sidebar-header",
+    width: "100%",
+    height: 3,
+    alignItems: "center",
+    backgroundColor: "transparent",
+  })
+
   const headerText = new TextRenderable(renderer, {
     id: "sidebar-header-text",
-    content: `AGENT ORCHESTRATOR   [${state.version}]`,
-    fg: "#ffffff",
+    content: "≡ Loom",
+    fg: "#a78bfa",
   })
-  headerBox.add(headerText)
-  const subphaseBox = new BoxRenderable(renderer, {
-    id: "sidebar-subphase",
-    width: "auto",
-    height: 3,
-    borderStyle: "single",
-    border: true,
-    alignItems: "center",
-  })
-  const subphaseText = new TextRenderable(renderer, {
-    id: "sidebar-subphase-text",
-    content: `SUBPHASE: ${state.subphase}`,
-    fg: "#e2e8f0",
-  })
-  subphaseBox.add(subphaseText)
-  const iterationBox = new BoxRenderable(renderer, {
-    id: "sidebar-iteration",
-    width: "auto",
-    height: 3,
-    borderStyle: "single",
-    border: true,
-    alignItems: "center",
-  })
-  const iterationText = new TextRenderable(renderer, {
-    id: "sidebar-iteration-text",
-    content: `ITERATION: [ ${state.iteration.current} / ${state.iteration.max} ]`,
-    fg: "#e2e8f0",
-  })
-  iterationBox.add(iterationText)
-  const stepsBox = new BoxRenderable(renderer, {
-    id: "sidebar-steps",
-    width: "auto",
-    height: "auto",
-    borderStyle: "single",
-    border: true,
-    flexDirection: "column",
-    padding: 1,
-  })
-  const stepsTitle = new TextRenderable(renderer, {
-    id: "sidebar-steps-title",
-    content: "ACTIVE AGENT STATE",
-    fg: "#94a3b8",
-  })
-  const stepsText = new TextRenderable(renderer, {
-    id: "sidebar-steps-text",
-    content: state.steps.map((s, i) => formatstep(s, i)).join("\n"),
-  })
-  stepsBox.add(stepsTitle)
-  stepsBox.add(stepsText)
-  const logsBox = new BoxRenderable(renderer, {
-    id: "sidebar-logs",
-    width: "auto",
-    height: "auto",
-    borderStyle: "single",
-    border: true,
-    flexDirection: "column",
-    padding: 1,
-  })
-  const logsTitle = new TextRenderable(renderer, {
-    id: "sidebar-logs-title",
-    content: "LIVE PI-SESSION LOGS",
-    fg: "#94a3b8",
-  })
-  const logsText = new TextRenderable(renderer, {
-    id: "sidebar-logs-text",
-    content: renderLogs(state),
-    fg: "#38bdf8",
-  })
-  logsBox.add(logsTitle)
-  logsBox.add(logsText)
- 
-  container.add(headerBox)
-  container.add(subphaseBox)
-  container.add(iterationBox)
-  container.add(stepsBox)
-  container.add(logsBox)
-   
-  function renderLogs(s:SideBarState):string{
-    const limit = s.maxloglines ?? 6
-    return s.logs.slice(0,limit).join("\n")
-  }
-  function update(partial: Partial<SideBarState>) {
-    state = { ...state, ...partial }
- 
-    headerText.content = `AGENT ORCHESTRATOR   [${state.version}]`
-    subphaseText.content = `SUBPHASE: ${state.subphase}`
-    iterationText.content = `ITERATION: [ ${state.iteration.current} / ${state.iteration.max} ]`
-    stepsText.content = state.steps.map((s, i) => formatstep(s, i)).join("\n")
-    logsText.content = renderLogs(state)
-  }
-  function pushLog(line: string) {
-    update({ logs: [line, ...state.logs] })
-  }
- 
-  return { container, update, pushlog: pushLog }
 
+  headerRow.add(headerText)
+  headerRow.onMouse = (event) => {
+    if (event.type === "down") toggleSideBar()
+  }
+  headerRow.onMouseOver = () => {
+    headerRow.backgroundColor = "#1e293b"
+  }
+  headerRow.onMouseOut = () => {
+    headerRow.backgroundColor = "transparent"
+  }
+
+  // ---- INPUT ----
+  const input = new InputRenderable(renderer, {
+    id: "sidebar-input",
+    placeholder: "Type a command...",
+    width: "auto",
+    backgroundColor: "transparent",
+    textColor: "#f1f5f9",
+    placeholderColor: "#64748b",
+  })
+
+  const inputBox = new BoxRenderable(renderer, {
+    id: "sidebar-input-box",
+    width: "100%",
+    height: 3,
+    borderStyle: "rounded",
+    border: true,
+    borderColor: "#334155",
+    paddingLeft: 1,
+  })
+  inputBox.add(input)
+
+  // ---- ITEMS (icon LEFT of text) ----
+  const navBox = new BoxRenderable(renderer, {
+    id: "sidebar-nav",
+    width: "100%",
+    height: "auto",
+    flexDirection: "column",
+  })
+
+  const itemRows: Array<{
+    row: BoxRenderable
+    icon: TextRenderable
+    label: TextRenderable
+    item: SidebarItem
+  }> = []
+
+  for (const item of allItems) {
+    const icon = new TextRenderable(renderer, {
+      id: `sidebar-icon-${item.id}`,
+      content: `${item.icon} `,
+      fg: "#64748b",
+    })
+
+    const label = new TextRenderable(renderer, {
+      id: `sidebar-label-${item.id}`,
+      content: item.label,
+      fg: "#cbd5e1",
+    })
+
+    const row = new BoxRenderable(renderer, {
+      id: `sidebar-row-${item.id}`,
+      width: "100%",
+      height: 3,
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: "transparent",
+    })
+
+    row.add(icon)
+    row.add(label)
+
+    row.onMouse = (event) => {
+      if (event.type === "down") item.action()
+    }
+    row.onMouseOver = () => {
+      row.backgroundColor = "#1e293b"
+      icon.fg = "#a78bfa"
+      label.fg = "#f1f5f9"
+    }
+    row.onMouseOut = () => {
+      row.backgroundColor = "transparent"
+      icon.fg = "#64748b"
+      label.fg = "#cbd5e1"
+    }
+
+    navBox.add(row)
+    itemRows.push({ row, icon, label, item })
+  }
+
+  container.add(headerRow)
+  container.add(inputBox)
+  container.add(navBox)
+
+  renderer.root.add(toggleButton)
+  renderer.root.add(container)
+
+  // ---- FILTER & SELECTION ----
+  function updateView() {
+    for (const { row, icon, label, item } of itemRows) {
+      const visible = filteredItems.includes(item)
+      const idx = filteredItems.indexOf(item)
+      const selected = idx === selectedIndex && visible
+
+      row.visible = visible
+      if (visible) {
+        icon.fg = selected ? "#a78bfa" : "#64748b"
+        label.fg = selected ? "#f1f5f9" : "#cbd5e1"
+        row.backgroundColor = selected ? "#1e293b" : "transparent"
+      }
+    }
+  }
+
+  function updateFilter(value: string) {
+    const query = value.toLowerCase()
+    filteredItems = allItems.filter((item) =>
+      item.label.toLowerCase().includes(query)
+    )
+    selectedIndex = 0
+    updateView()
+  }
+
+  // ---- INPUT KEY HANDLING ----
+  input.onKeyDown = (key: KeyEvent) => {
+    if (!expanded) return
+
+    if (key.name === "up") {
+      selectedIndex = Math.max(0, selectedIndex - 1)
+      updateView()
+      return
+    }
+
+    if (key.name === "down") {
+      selectedIndex = Math.min(filteredItems.length - 1, selectedIndex + 1)
+      updateView()
+      return
+    }
+
+    if (key.name === "return" || key.name === "linefeed") {
+      const item = filteredItems[selectedIndex]
+      if (item) item.action()
+      return
+    }
+
+    if (key.name === "escape") {
+      input.value = ""
+      updateFilter("")
+      input.blur()
+      return
+    }
+
+    if (key.name === "backspace" || key.name === "delete") {
+      updateFilter(input.value)
+      return
+    }
+
+    updateFilter(input.value)
+  }
+
+  input.onSubmit = () => {
+    const item = filteredItems[selectedIndex]
+    if (item) item.action()
+  }
+
+  // ---- TOGGLE ----
+  function toggleSideBar() {
+    expanded = !expanded
+    container.visible = expanded
+    toggleButton.visible = !expanded
+    if (expanded) {
+      input.value = ""
+      updateFilter("")
+      input.focus()
+    }
+  }
+
+  function onKeyPress(key: KeyEvent) {
+    if (key.ctrl && key.name === "b") {
+      toggleSideBar()
+    }
+  }
+
+  renderer.keyInput.on("keypress", onKeyPress)
+
+  function destroy() {
+    renderer.keyInput.off("keypress", onKeyPress)
+    renderer.root.remove(container)
+    renderer.root.remove(toggleButton)
+  }
+
+  return {
+    container,
+    toggle: toggleSideBar,
+    destroy,
+  }
 }
